@@ -2233,10 +2233,14 @@
     } else if (this.value === 'transit' && !transitMap && geojsonData) {
       fetchAndApplyTransitData(geojsonData);
     } else if (this.value === 'composite' && geojsonData) {
-      if (!osmWheelchairMap) fetchAndApplyOsmData(geojsonData);
-      if (!terrainMap)       fetchAndApplyTerrainData(geojsonData);
-      if (!ageMap)           fetchAndApplyAgeData(geojsonData);
-      if (!transitMap)       fetchAndApplyTransitData(geojsonData);
+      if (!osmWheelchairMap)      fetchAndApplyOsmData(geojsonData);
+      if (!terrainMap)            fetchAndApplyTerrainData(geojsonData);
+      if (!ageMap)                fetchAndApplyAgeData(geojsonData);
+      if (!transitMap)            fetchAndApplyTransitData(geojsonData);
+      if (!adiMap)                fetchAdiData();
+      if (!sidewalkNeighborhoodMap) fetchAndApplySidewalkNeighborhoodData(geojsonData).catch(() => {});
+      if (!sidewalkStreetMap)     fetchAndApplySidewalkStreetData(geojsonData).catch(() => {});
+      if (!prtRoutesMap)          fetchAndApplyPrtRoutesData(geojsonData).catch(() => {});
       computeComposite();
       if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
       updateLegend();
