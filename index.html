@@ -1,0 +1,2340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pittsburgh Zipcode Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      display: flex;
+      height: 100vh;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d1117;
+      color: #e0e6ed;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 270px;
+      min-width: 270px;
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+
+    .sidebar-header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .sidebar-header h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #58a6ff;
+      letter-spacing: 0.3px;
+    }
+
+    .sidebar-header p {
+      font-size: 0.75rem;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+
+    .section {
+      padding: 14px 16px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .section-title {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8b949e;
+      margin-bottom: 10px;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    button {
+      background: #21262d;
+      color: #e0e6ed;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 7px 12px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      transition: background 0.15s, border-color 0.15s;
+      flex: 1;
+    }
+
+    button:hover {
+      background: #30363d;
+      border-color: #58a6ff;
+    }
+
+    button.icon-btn {
+      font-size: 1.1rem;
+      flex: 0 0 36px;
+      padding: 6px;
+    }
+
+    /* Range sliders */
+    .slider-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: #8b949e;
+      margin-bottom: 5px;
+    }
+
+    .slider-row span:last-child {
+      color: #58a6ff;
+      font-variant-numeric: tabular-nums;
+      min-width: 32px;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #58a6ff;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    input[type="range"]:last-child { margin-bottom: 0; }
+
+    /* Select */
+    select {
+      width: 100%;
+      background: #21262d;
+      color: #e0e6ed;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 7px 8px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    select:focus { outline: none; border-color: #58a6ff; }
+
+    /* Toggles */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: #c9d1d9;
+      margin-bottom: 8px;
+    }
+
+    .toggle-row:last-child { margin-bottom: 0; }
+
+    .switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .switch-slider {
+      position: absolute;
+      inset: 0;
+      background: #30363d;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: 0.25s;
+    }
+
+    .switch-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      top: 3px;
+      background: #8b949e;
+      border-radius: 50%;
+      transition: 0.25s;
+    }
+
+    input:checked + .switch-slider { background: #1f6feb; }
+    input:checked + .switch-slider::before { transform: translateX(16px); background: #fff; }
+
+    /* Basemap selector */
+    .basemap-opts {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 4px;
+    }
+
+    .basemap-opt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      padding: 5px 8px;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .basemap-opt:hover { background: #21262d; }
+
+    .basemap-opt input[type="radio"] { accent-color: #58a6ff; cursor: pointer; }
+
+    .basemap-opt.active-basemap {
+      border-color: #1f6feb;
+      background: #0d2845;
+    }
+
+    /* Geography type selector (same styling as basemap opts) */
+    .geo-opts {
+      display: flex;
+      gap: 6px;
+    }
+
+    .geo-opt {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      padding: 7px 8px;
+      border-radius: 5px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      transition: border-color 0.15s, background 0.15s;
+      text-align: center;
+    }
+
+    .geo-opt:hover { background: #30363d; }
+    .geo-opt input[type="radio"] { accent-color: #58a6ff; cursor: pointer; }
+    .geo-opt.active-geo { border-color: #1f6feb; background: #0d2845; }
+
+    /* Info panel */
+    #info-box {
+      flex: 1;
+      padding: 14px 16px;
+    }
+
+    #info-content {
+      color: #8b949e;
+      font-size: 0.82rem;
+      line-height: 1.6;
+    }
+
+    #info-zip {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #58a6ff;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    #info-sub {
+      color: #8b949e;
+      font-size: 0.82rem;
+    }
+
+    /* Status bar */
+    #status-bar {
+      padding: 8px 16px;
+      font-size: 0.72rem;
+      color: #6e7681;
+      border-top: 1px solid #21262d;
+      background: #0d1117;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #f0883e;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    #status-dot.ready { background: #3fb950; }
+    #status-dot.error { background: #f85149; }
+
+    /* ── Map ── */
+    #map {
+      flex: 1;
+      z-index: 0;
+    }
+
+    /* Leaflet overrides */
+    .leaflet-control-zoom { display: none; }
+    .leaflet-container { background: #0d1117; }
+
+    .zip-label {
+      background: transparent;
+      border: none;
+      font-size: 11px;
+      font-weight: 700;
+      color: #1a1a2e;
+      text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 4px #fff;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="sidebar-header">
+    <h1 id="sidebar-city-name">Pittsburgh Zipcodes</h1>
+    <p id="sidebar-city-sub">Greater Allegheny County area</p>
+  </div>
+
+  <!-- Navigation -->
+  <div class="section">
+    <div class="section-title">Navigation</div>
+    <div class="btn-row">
+      <button class="icon-btn" id="btn-zoom-in" title="Zoom In">+</button>
+      <button class="icon-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+      <button id="btn-reset">Reset View</button>
+    </div>
+  </div>
+
+  <!-- Display -->
+  <div class="section">
+    <div class="section-title">Display</div>
+
+    <div class="slider-row" style="margin-top:2px">
+      <span>Color Scheme</span>
+    </div>
+    <select id="sel-scheme">
+      <option value="categorical">Categorical (Rainbow)</option>
+      <option value="blues">Blues</option>
+      <option value="greens">Greens</option>
+      <option value="warm">Warm Tones</option>
+      <option value="purples">Purples</option>
+      <option value="monochrome">Monochrome</option>
+    </select>
+
+    <div style="margin-top:10px">
+      <div class="slider-row" style="margin-bottom:3px"><span>Color By</span></div>
+      <select id="sel-color-mode">
+        <option value="disability">Ambulatory Disability (ACS)</option>
+        <option value="osm">OSM Wheelchair Access</option>
+        <option value="terrain">Terrain Traversability</option>
+        <option value="age65">Age 65+ Population</option>
+        <option value="transit">Accessible Transit Stops</option>
+        <option value="adi">Neighborhood Disadvantage (ADI)</option>
+        <option value="sidewalk-neighborhood">Sidewalk Neighborhood Score</option>
+        <option value="sidewalk-street">Sidewalk Street Score</option>
+        <option value="prt-routes">Bus Route Coverage</option>
+        <option value="composite">Wheelchair Friendliness</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Layers -->
+  <div class="section">
+    <div class="section-title">Layers</div>
+    <div class="toggle-row">
+      <span>Zipcode Labels</span>
+      <label class="switch">
+        <input type="checkbox" id="tog-labels" checked />
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span>Borders</span>
+      <label class="switch">
+        <input type="checkbox" id="tog-borders" checked />
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span>Fill Colors</span>
+      <label class="switch">
+        <input type="checkbox" id="tog-fill" checked />
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- City -->
+  <div class="section">
+    <div class="section-title">City</div>
+    <div class="geo-opts">
+      <label class="geo-opt active-geo" id="city-pgh">
+        <input type="radio" name="city" value="pittsburgh" checked /> Pittsburgh
+      </label>
+      <label class="geo-opt" id="city-sea">
+        <input type="radio" name="city" value="seattle" /> Seattle
+      </label>
+    </div>
+  </div>
+
+  <!-- Geography type -->
+  <div class="section">
+    <div class="section-title">Geography</div>
+    <div class="geo-opts">
+      <label class="geo-opt active-geo" id="geo-zip">
+        <input type="radio" name="geography" value="zipcodes" checked /> ZIP Codes
+      </label>
+      <label class="geo-opt" id="geo-tract">
+        <input type="radio" name="geography" value="tracts" /> Census Tracts
+      </label>
+    </div>
+  </div>
+
+  <!-- Basemap -->
+  <div class="section">
+    <div class="section-title">Base Map</div>
+    <div class="basemap-opts">
+      <label class="basemap-opt active-basemap" id="bm-light">
+        <input type="radio" name="basemap" value="light" checked /> Light (CartoDB)
+      </label>
+      <label class="basemap-opt" id="bm-osm">
+        <input type="radio" name="basemap" value="osm" /> OpenStreetMap
+      </label>
+    </div>
+  </div>
+
+  <!-- Legend (shown when disability data is loaded) -->
+  <div class="section" id="legend-section" style="display:none">
+    <div class="section-title" id="legend-title">Ambulatory Disability</div>
+    <div id="legend-gradient"
+         style="display:flex;height:14px;border-radius:4px;overflow:hidden;margin-bottom:5px"></div>
+    <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#8b949e">
+      <span id="legend-min">0</span>
+      <span id="legend-max">0</span>
+    </div>
+    <div style="margin-top:7px;font-size:0.71rem;color:#6e7681;line-height:1.4" id="legend-desc">
+      % of population with ambulatory difficulty (ACS 2022, B18105)
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;margin-top:5px;font-size:0.71rem;color:#6e7681">
+      <span style="display:inline-block;width:12px;height:12px;background:#374151;border-radius:2px;flex-shrink:0"></span>
+      No data
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div id="info-box">
+    <div class="section-title" id="info-title">Selected Area</div>
+    <div id="info-content">
+      <span style="color:#6e7681">Click any block to inspect</span>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div id="status-bar">
+    <div id="status-dot"></div>
+    <span id="status-text">Fetching zipcode boundaries…</span>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/osmtogeojson@3.0.0-beta.5/osmtogeojson.js"></script>
+<script src="disability-data.js"></script>
+<script src="extra-data.js"></script>
+<script src="adi-data.js"></script>
+<script src="pgh-extra-transit.js"></script>
+<script src="census.js"></script>
+<script>
+  /* ── Color palettes ── */
+  const PALETTES = {
+    categorical: ['#e53935','#8e24aa','#1e88e5','#00897b','#43a047',
+                  '#fb8c00','#f4511e','#6d4c41','#546e7a','#039be5',
+                  '#00acc1','#26a69a','#66bb6a','#d4e157','#ffa726',
+                  '#ff7043','#8d6e63','#78909c','#42a5f5','#ab47bc',
+                  '#ec407a','#7e57c2','#26c6da','#9ccc65','#ffca28'],
+    blues:      ['#bbdefb','#90caf9','#64b5f6','#42a5f5','#2196f3',
+                  '#1e88e5','#1976d2','#1565c0','#0d47a1'],
+    greens:     ['#c8e6c9','#a5d6a7','#81c784','#66bb6a','#4caf50',
+                  '#43a047','#388e3c','#2e7d32','#1b5e20'],
+    warm:       ['#fff9c4','#fff176','#ffee58','#fdd835','#fbc02d',
+                  '#f9a825','#f57f17','#ff8f00','#e65100','#bf360c'],
+    purples:    ['#f3e5f5','#ce93d8','#ba68c8','#ab47bc','#9c27b0',
+                  '#8e24aa','#7b1fa2','#6a1b9a','#4a148c'],
+    monochrome: ['#eceff1','#cfd8dc','#b0bec5','#90a4ae','#78909c',
+                  '#607d8b','#546e7a','#455a64','#37474f']
+  };
+
+  const TILE_URLS = {
+    light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    dark:  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    osm:   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+  };
+
+  const TILE_ATTR = {
+    light: '&copy; <a href="https://carto.com">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    dark:  '&copy; <a href="https://carto.com">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    osm:   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  };
+
+  /* ── State ── */
+  let state = {
+    city: 'pittsburgh',
+    mode: 'zipcodes',
+    scheme: 'categorical',
+    opacity: 0.65,
+    stroke: 1.5,
+    showLabels: true,
+    showBorders: true,
+    showFill: true,
+    colorMode: 'disability',
+    basemap: 'light'
+  };
+
+  let geojsonData      = null;
+  let geojsonLayer     = null;
+  let labelGroup       = null;
+  let tileLayer        = null;
+  let selectedLayer    = null;
+  let disabilityMap    = null;  // Map<id, {count, totalPop}>
+  let disabilityRange  = { min: 0, max: 1 };
+  let osmWheelchairMap = null;  // Map<id, {yes, limited, no, pct}>
+  let osmRange         = { min: 0, max: 1 };
+  let terrainMap       = null;  // Map<id, {stdDev, mean, count}>
+  let terrainRange     = { min: 0, max: 100 };
+  let ageMap           = null;  // Map<id, {count65, totalPop, pct}>
+  let ageRange         = { min: 0, max: 0.3 };
+  let transitMap       = null;  // Map<id, {accessible, total}>
+  let transitRange     = { min: 0, max: 1 };
+  let compositeMap     = null;  // Map<id, {score, datasetsUsed}>
+  let compositeRange   = { min: 0, max: 1 };
+  let adiMap                    = null;  // Map<zip5, {avg, n}>
+  let adiRange                  = { min: 1, max: 10 };
+  let sidewalkNeighborhoodMap   = null;  // Map<id, score>
+  let sidewalkNeighborhoodRange = { min: 0, max: 1 };
+  let sidewalkStreetMap         = null;  // Map<id, {sum, count}>
+  let sidewalkStreetRange       = { min: 0, max: 1 };
+  let prtRoutesMap              = null;  // Map<id, number> — distinct route count
+  let prtRoutesRange            = { min: 0, max: 1 };
+
+  // ColorBrewer YlOrRd sequential scale (low → high)
+  const SEQ_COLORS = [
+    '#ffffb2','#fed976','#feb24c','#fd8d3c',
+    '#fc4e2a','#e31a1c','#bd0026','#800026'
+  ];
+
+  // RdYlGn scale for OSM accessibility (low % → red, high % → green)
+  const OSM_COLORS = [
+    '#d73027','#f46d43','#fdae61','#fee08b',
+    '#d9ef8b','#a6d96a','#66bd63','#1a9850'
+  ];
+
+  // Terrain traversability: low std-dev (flat) → green, high (hilly) → red
+  const TERRAIN_COLORS = [
+    '#1a9850','#66bd63','#a6d96a','#d9ef8b',
+    '#fee08b','#fdae61','#f46d43','#d73027'
+  ];
+
+  // Age 65+: light → dark orange (higher = more older adults)
+  const AGE_COLORS = [
+    '#fff5eb','#fee6ce','#fdd0a2','#fdae6b',
+    '#fd8d3c','#f16913','#d94801','#8c2d04'
+  ];
+
+  // Transit accessibility: light → dark blue (higher accessible count = better)
+  const TRANSIT_COLORS = [
+    '#f7fbff','#deebf7','#c6dbef','#9ecae1',
+    '#6baed6','#4292c6','#2171b5','#08306b'
+  ];
+
+  // Wheelchair friendliness: light → dark green (higher = more friendly)
+  const COMPOSITE_COLORS = [
+    '#f7fcf5','#e5f5e0','#c7e9c0','#a1d99b',
+    '#74c476','#41ab5d','#238b45','#005a32'
+  ];
+
+  // ADI disadvantage: blue (1=least) → red (10=most disadvantaged)
+  const ADI_COLORS = [
+    '#2166ac','#4393c3','#92c5de','#d1e5f0',
+    '#fddbc7','#f4a582','#d6604d','#b2182b'
+  ];
+
+  // Project Sidewalk neighborhood score: red (0=inaccessible) → teal (1=accessible)
+  const PSNH_COLORS = [
+    '#d7191c','#e85b3a','#f99e59','#fec980',
+    '#ffffbf','#a1dab4','#41b6c4','#225ea8'
+  ];
+
+  // Project Sidewalk street score: purple (0=inaccessible) → green (1=accessible)
+  const PSST_COLORS = [
+    '#762a83','#9970ab','#c2a5cf','#e7d4e8',
+    '#d9f0d3','#a6dba0','#5aae61','#1b7837'
+  ];
+
+  // PRT bus route density: light yellow → dark blue (fewer → more routes)
+  const PRT_COLORS = [
+    '#ffffd9','#edf8b1','#c7e9b4','#7fcdbb',
+    '#41b6c4','#1d91c0','#225ea8','#0c2c84'
+  ];
+
+  /* ── City config ── */
+  const CITIES = {
+    pittsburgh: {
+      name: 'Pittsburgh', subtitle: 'Greater Allegheny County area',
+      center: [40.4406, -79.9959], zoom: 11,
+      bounds: [[40.18, -80.37], [40.72, -79.68]],
+      tigerBbox: '-80.37%2C40.18%2C-79.68%2C40.72',
+      overpassBbox: '40.18,-80.37,40.72,-79.68',
+      latMin: 40.18, latMax: 40.72, lonMin: -80.37, lonMax: -79.68,
+      tractGeoId: '140|05000US42003',
+      sidewalkUrl: 'https://sidewalk-pittsburgh.cs.washington.edu',
+    },
+    seattle: {
+      name: 'Seattle', subtitle: 'Greater King County area',
+      center: [47.6062, -122.3321], zoom: 11,
+      bounds: [[47.40, -122.55], [47.80, -122.10]],
+      tigerBbox: '-122.55%2C47.40%2C-122.10%2C47.80',
+      overpassBbox: '47.40,-122.55,47.80,-122.10',
+      latMin: 47.40, latMax: 47.80, lonMin: -122.55, lonMax: -122.10,
+      tractGeoId: '140|05000US53033',
+      sidewalkUrl: 'https://sidewalk-sea.cs.washington.edu',
+    },
+  };
+  const city = () => CITIES[state.city];
+
+  /* ── Map init ── */
+  const map = L.map('map', {
+    zoomControl: false,
+    center: CITIES.pittsburgh.center,
+    zoom: CITIES.pittsburgh.zoom
+  });
+
+  tileLayer = L.tileLayer(TILE_URLS.light, {
+    attribution: TILE_ATTR.light,
+    maxZoom: 19,
+    subdomains: 'abcd'
+  }).addTo(map);
+
+  /* ── Helpers ── */
+  function hashCode(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+    }
+    return Math.abs(h);
+  }
+
+  function getColor(zip) {
+    const palette = PALETTES[state.scheme];
+    return palette[hashCode(zip) % palette.length];
+  }
+
+  // "010101" → "101.01", "010100" → "101"
+  function formatTract(code) {
+    if (!code) return 'N/A';
+    const n = parseInt(code, 10);
+    const whole = Math.floor(n / 100);
+    const dec   = n % 100;
+    return dec > 0 ? `${whole}.${String(dec).padStart(2, '0')}` : `${whole}`;
+  }
+
+  function getDisabilityId(feature) {
+    return state.mode === 'tracts'
+      ? feature.properties.GEOID
+      : feature.properties._label;
+  }
+
+  function disabilityPct(entry) {
+    return entry && entry.totalPop > 0 ? entry.count / entry.totalPop : null;
+  }
+
+  function disabilityColor(feature) {
+    const id    = getDisabilityId(feature);
+    const entry = disabilityMap ? disabilityMap.get(id) : null;
+    const pct   = disabilityPct(entry);
+    if (pct === null) return '#374151';
+    const { min, max } = disabilityRange;
+    const t = max > min ? (pct - min) / (max - min) : 0;
+    return SEQ_COLORS[Math.min(Math.floor(t * SEQ_COLORS.length), SEQ_COLORS.length - 1)];
+  }
+
+  function osmColor(feature) {
+    const id    = getDisabilityId(feature);
+    const entry = osmWheelchairMap ? osmWheelchairMap.get(id) : null;
+    if (!entry || entry.pct === null) return '#374151';
+    const { min, max } = osmRange;
+    const t = max > min ? (entry.pct - min) / (max - min) : 0;
+    return OSM_COLORS[Math.min(Math.floor(t * OSM_COLORS.length), OSM_COLORS.length - 1)];
+  }
+
+  function terrainColor(feature) {
+    const id    = getDisabilityId(feature);
+    const entry = terrainMap ? terrainMap.get(id) : null;
+    if (!entry || entry.stdDev === null) return '#374151';
+    const { min, max } = terrainRange;
+    const t = max > min ? (entry.stdDev - min) / (max - min) : 0;
+    return TERRAIN_COLORS[Math.min(Math.floor(t * TERRAIN_COLORS.length), TERRAIN_COLORS.length - 1)];
+  }
+
+  function ageColor(feature) {
+    const id    = getDisabilityId(feature);
+    const entry = ageMap ? ageMap.get(id) : null;
+    if (!entry || entry.pct === null) return '#374151';
+    const { min, max } = ageRange;
+    const t = max > min ? (entry.pct - min) / (max - min) : 0;
+    return AGE_COLORS[Math.min(Math.floor(t * AGE_COLORS.length), AGE_COLORS.length - 1)];
+  }
+
+  function transitColor(feature) {
+    const id    = getDisabilityId(feature);
+    const entry = transitMap ? transitMap.get(id) : null;
+    if (!entry || entry.total === 0) return '#374151';
+    const { min, max } = transitRange;
+    const t = max > min ? (entry.accessible - min) / (max - min) : 0;
+    return TRANSIT_COLORS[Math.min(Math.floor(t * TRANSIT_COLORS.length), TRANSIT_COLORS.length - 1)];
+  }
+
+  function compositeColor(feature) {
+    const id    = getDisabilityId(feature);
+    const entry = compositeMap ? compositeMap.get(id) : null;
+    if (!entry || entry.score === null) return '#374151';
+    const { min, max } = compositeRange;
+    const t = max > min ? (entry.score - min) / (max - min) : 0;
+    return COMPOSITE_COLORS[Math.min(Math.floor(t * COMPOSITE_COLORS.length), COMPOSITE_COLORS.length - 1)];
+  }
+
+  function adiColor(feature) {
+    if (state.mode === 'tracts') return '#374151';
+    const zip5 = feature.properties._label;
+    const entry = adiMap ? adiMap.get(zip5) : null;
+    if (!entry) return '#374151';
+    const span = adiRange.max - adiRange.min;
+    const t = span > 0 ? (entry.avg - adiRange.min) / span : 0;
+    return ADI_COLORS[Math.min(Math.floor(t * ADI_COLORS.length), ADI_COLORS.length - 1)];
+  }
+
+  function fetchAdiData() {
+    const src = window.ADI_DATA?.[state.city];
+    if (!src) { adiMap = null; return; }
+    const m = new Map();
+    let mn = Infinity, mx = -Infinity;
+    for (const [zip, val] of Object.entries(src)) {
+      m.set(zip, val);
+      if (val.avg < mn) mn = val.avg;
+      if (val.avg > mx) mx = val.avg;
+    }
+    adiMap   = m;
+    adiRange = { min: mn, max: mx };
+  }
+
+  // ── PRT bus routes ───────────────────────────────────────────────────────────
+  function prtRoutesColor(feature) {
+    const id = getDisabilityId(feature);
+    const count = prtRoutesMap ? prtRoutesMap.get(id) : null;
+    if (count === null || count === undefined || count === 0) return '#374151';
+    const { min, max } = prtRoutesRange;
+    const t = max > min ? (count - min) / (max - min) : 0;
+    return PRT_COLORS[Math.min(Math.floor(t * PRT_COLORS.length), PRT_COLORS.length - 1)];
+  }
+
+  // Shared helper: assign [{lon, lat, routes:[]}] stops to ZIP/tract polygons
+  function assignStopsToAreas(stops, featureBboxes) {
+    const routeSets = new Map();
+    featureBboxes.forEach(({ id }) => routeSets.set(id, new Set()));
+    for (const { lon, lat, routes } of stops) {
+      for (const fb of featureBboxes) {
+        if (lon < fb.minLon || lon > fb.maxLon || lat < fb.minLat || lat > fb.maxLat) continue;
+        if (pointInFeature([lon, lat], fb.feature)) {
+          const s = routeSets.get(fb.id);
+          if (s) routes.forEach(r => s.add(r));
+          break;
+        }
+      }
+    }
+    return routeSets;
+  }
+
+  async function fetchAndApplyPrtRoutesData(geoData) {
+    // Precompute bbox for each ZIP/tract polygon (shared by both cities)
+    const featureBboxes = geoData.features.map(f => {
+      let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      const rings = f.geometry.type === 'Polygon'
+        ? f.geometry.coordinates : f.geometry.coordinates.flat(1);
+      for (const ring of rings) {
+        for (const [lon, lat] of ring) {
+          if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon;
+          if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+        }
+      }
+      return { feature: f, id: getDisabilityId(f), minLon, maxLon, minLat, maxLat };
+    });
+
+    let stops = [];
+
+    if (state.city === 'pittsburgh') {
+      setStatus('Fetching PRT stop data from WPRDC…', null);
+      const url = 'https://data.wprdc.org/dataset/33d5f44b-5315-4374-b3e3-e4246e8ad5c9/resource/d6e6ed6e-9220-4a0e-9796-e72d83ce8e7a/download/stops.geojson';
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const stopsGeo = await resp.json();
+      for (const feat of stopsGeo.features) {
+        const routeCode = feat.properties?.route_code;
+        const coords = feat.geometry?.coordinates;
+        if (!routeCode || !coords) continue;
+        const [lon, lat] = coords;
+        const routes = routeCode.split(',').map(r => r.trim()).filter(Boolean);
+        stops.push({ lon, lat, routes });
+      }
+
+      // Merge pre-generated regional agency stops (WCTA, BCTA, NCATA, MMVTA)
+      if (Array.isArray(window.PGH_EXTRA_TRANSIT)) {
+        for (const [lat, lon, routeStr] of window.PGH_EXTRA_TRANSIT) {
+          const routes = routeStr.split(',').filter(Boolean);
+          stops.push({ lon, lat, routes });
+        }
+      }
+
+    } else if (state.city === 'seattle') {
+      // Derive bbox from actual loaded ZIP polygons so all visible ZIPs are covered,
+      // including Kitsap Peninsula and suburbs outside the default city bounds.
+      let latMin = Infinity, latMax = -Infinity, lonMin = Infinity, lonMax = -Infinity;
+      for (const fb of featureBboxes) {
+        if (fb.minLat < latMin) latMin = fb.minLat;
+        if (fb.maxLat > latMax) latMax = fb.maxLat;
+        if (fb.minLon < lonMin) lonMin = fb.minLon;
+        if (fb.maxLon > lonMax) lonMax = fb.maxLon;
+      }
+      // Small padding so edge ZIPs get stops from just outside their boundary
+      latMin -= 0.05; latMax += 0.05; lonMin -= 0.05; lonMax += 0.05;
+
+      // 6×6 grid = 36 tiles — finer tiling means fewer stops dropped per tile
+      // OBA returns all agencies (King County Metro, Kitsap Transit, Sound Transit,
+      // Community Transit, Pierce Transit, Everett Transit, etc.) in one call
+      const GRID = 6;
+      const latStep = (latMax - latMin) / GRID;
+      const lonStep = (lonMax - lonMin) / GRID;
+      const seen = new Set();
+
+      const tiles = [];
+      for (let r = 0; r < GRID; r++)
+        for (let c = 0; c < GRID; c++)
+          tiles.push({
+            lat: latMin + (r + 0.5) * latStep,
+            lon: lonMin + (c + 0.5) * lonStep,
+            latSpan: latStep, lonSpan: lonStep
+          });
+
+      const total = tiles.length;
+      for (let i = 0; i < total; i++) {
+        const t = tiles[i];
+        setStatus(`Fetching transit stops — tile ${i + 1}/${total} (all agencies)…`, null);
+        const url = `https://api.pugetsound.onebusaway.org/api/where/stops-for-location.json?lat=${t.lat}&lon=${t.lon}&latSpan=${t.latSpan}&lonSpan=${t.lonSpan}&key=TEST`;
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) continue;
+          const data = await resp.json();
+          for (const stop of (data?.data?.list ?? [])) {
+            if (seen.has(stop.id)) continue;
+            seen.add(stop.id);
+            const routes = (stop.routeIds ?? []).map(r => r.split('_').slice(1).join('_') || r);
+            stops.push({ lon: stop.lon, lat: stop.lat, routes });
+          }
+        } catch (e) { console.warn('OBA tile failed:', e); }
+        if (i < total - 1) await new Promise(r => setTimeout(r, 100));
+      }
+    }
+
+    const routeSets = assignStopsToAreas(stops, featureBboxes);
+
+    const result = new Map();
+    const counts = [];
+    for (const [id, s] of routeSets) {
+      result.set(id, s.size);
+      if (s.size > 0) counts.push(s.size);
+    }
+
+    prtRoutesMap   = result;
+    prtRoutesRange = counts.length > 0
+      ? { min: Math.min(...counts), max: Math.max(...counts) }
+      : { min: 0, max: 1 };
+
+    if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+    updateLegend();
+    const noun = state.mode === 'tracts' ? 'tracts' : 'ZIP codes';
+    setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+  }
+
+  // ── Project Sidewalk score helpers ───────────────────────────────────────────
+  function featureCentroid(feature) {
+    const rings = feature.geometry.type === 'Polygon'
+      ? feature.geometry.coordinates
+      : feature.geometry.coordinates.flat(1);
+    let sumLon = 0, sumLat = 0, count = 0;
+    for (const ring of rings) {
+      for (const [lon, lat] of ring) { sumLon += lon; sumLat += lat; count++; }
+    }
+    return count > 0 ? [sumLon / count, sumLat / count] : null;
+  }
+
+  function scoreColor(score, colors) {
+    if (score === null || score === undefined) return '#374151';
+    const t = Math.min(1, Math.max(0, score));
+    return colors[Math.min(Math.floor(t * colors.length), colors.length - 1)];
+  }
+
+  function sidewalkNeighborhoodColor(feature) {
+    const id = getDisabilityId(feature);
+    const score = sidewalkNeighborhoodMap ? sidewalkNeighborhoodMap.get(id) : null;
+    return scoreColor(score, PSNH_COLORS);
+  }
+
+  function sidewalkStreetColor(feature) {
+    const id = getDisabilityId(feature);
+    const entry = sidewalkStreetMap ? sidewalkStreetMap.get(id) : null;
+    if (!entry || entry.count === 0) return '#374151';
+    return scoreColor(entry.sum / entry.count, PSST_COLORS);
+  }
+
+  async function fetchAndApplySidewalkNeighborhoodData(geoData) {
+    const { latMin, latMax, lonMin, lonMax, sidewalkUrl } = city();
+    const url = `${sidewalkUrl}/v2/access/score/neighborhoods?lat1=${latMin}&lng1=${lonMin}&lat2=${latMax}&lng2=${lonMax}&filetype=geojson`;
+    setStatus('Fetching Project Sidewalk neighborhood scores…', null);
+
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const nhGeo = await resp.json();
+
+    // Precompute bbox for each of our ZIP/tract polygons for fast pre-filter
+    const featureBboxes = geoData.features.map(f => {
+      let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      const rings = f.geometry.type === 'Polygon'
+        ? f.geometry.coordinates : f.geometry.coordinates.flat(1);
+      for (const ring of rings) {
+        for (const [lon, lat] of ring) {
+          if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon;
+          if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+        }
+      }
+      return { feature: f, id: getDisabilityId(f), minLon, maxLon, minLat, maxLat };
+    });
+
+    // Accumulate: for each Project Sidewalk neighborhood, compute its centroid,
+    // then find which of our ZIP/tract polygons contains it. Multiple neighborhoods
+    // can contribute to one ZIP — we average them all.
+    const accum = new Map();
+    featureBboxes.forEach(({ id }) => accum.set(id, { sum: 0, count: 0 }));
+
+    for (const nhFeat of nhGeo.features) {
+      const score = nhFeat.properties?.score;
+      if (score == null) continue;
+      const centroid = featureCentroid(nhFeat);
+      if (!centroid) continue;
+      const [lon, lat] = centroid;
+
+      for (const fb of featureBboxes) {
+        if (lon < fb.minLon || lon > fb.maxLon || lat < fb.minLat || lat > fb.maxLat) continue;
+        if (pointInFeature([lon, lat], fb.feature)) {
+          const e = accum.get(fb.id);
+          if (e) { e.sum += score; e.count++; }
+          break;
+        }
+      }
+    }
+
+    const result = new Map();
+    const scores = [];
+    for (const [id, e] of accum) {
+      const avg = e.count > 0 ? e.sum / e.count : null;
+      result.set(id, avg);
+      if (avg !== null) scores.push(avg);
+    }
+
+    sidewalkNeighborhoodMap   = result;
+    sidewalkNeighborhoodRange = scores.length > 0
+      ? { min: Math.min(...scores), max: Math.max(...scores) }
+      : { min: 0, max: 1 };
+
+    if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+    updateLegend();
+    const noun = state.mode === 'tracts' ? 'tracts' : 'ZIP codes';
+    setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+  }
+
+  async function fetchAndApplySidewalkStreetData(geoData) {
+    const { latMin, latMax, lonMin, lonMax, sidewalkUrl } = city();
+    const url = `${sidewalkUrl}/v2/access/score/streets?lat1=${latMin}&lng1=${lonMin}&lat2=${latMax}&lng2=${lonMax}&filetype=geojson`;
+    setStatus('Fetching Project Sidewalk street scores (may take a moment)…', null);
+
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const stGeo = await resp.json();
+
+    // Precompute bbox for each of our ZIP/tract polygons
+    const featureBboxes = geoData.features.map(f => {
+      let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      const rings = f.geometry.type === 'Polygon'
+        ? f.geometry.coordinates : f.geometry.coordinates.flat(1);
+      for (const ring of rings) {
+        for (const [lon, lat] of ring) {
+          if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon;
+          if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+        }
+      }
+      return { feature: f, id: getDisabilityId(f), minLon, maxLon, minLat, maxLat };
+    });
+
+    const result = new Map();
+    featureBboxes.forEach(({ id }) => result.set(id, { sum: 0, count: 0 }));
+
+    for (const st of stGeo.features) {
+      const score = st.properties?.score;
+      if (score == null || st.properties?.audit_count === 0) continue;
+      const coords = st.geometry?.coordinates;
+      if (!coords || coords.length === 0) continue;
+      // Use midpoint of line (middle coordinate index)
+      const mid = coords[Math.floor(coords.length / 2)];
+      const [lon, lat] = mid;
+
+      for (const fb of featureBboxes) {
+        if (lon < fb.minLon || lon > fb.maxLon || lat < fb.minLat || lat > fb.maxLat) continue;
+        if (pointInFeature([lon, lat], fb.feature)) {
+          const entry = result.get(fb.id);
+          if (entry) { entry.sum += score; entry.count++; }
+          break;
+        }
+      }
+    }
+
+    const avgs = [...result.values()].filter(e => e.count > 0).map(e => e.sum / e.count);
+    sidewalkStreetMap   = result;
+    sidewalkStreetRange = avgs.length > 0
+      ? { min: Math.min(...avgs), max: Math.max(...avgs) }
+      : { min: 0, max: 1 };
+
+    if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+    updateLegend();
+    const noun = state.mode === 'tracts' ? 'tracts' : 'ZIP codes';
+    setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+  }
+
+  // Normalize a value within a range to [0,1], optionally inverted
+  function normalize(val, min, max, invert) {
+    if (val === null || val === undefined || max <= min) return null;
+    const t = Math.min(1, Math.max(0, (val - min) / (max - min)));
+    return invert ? 1 - t : t;
+  }
+
+  function computeComposite() {
+    if (!geojsonData) return;
+
+    // Each dataset: {map, range, getValue, invert, weight}
+    // invert=true means higher raw value = BETTER (so we flip it so higher score = worse)
+    const datasets = [
+      // Terrain & sidewalk quality (target ~38% combined) — primary physical barriers
+      { label: 'terrain',              map: terrainMap,             range: terrainRange,             invert: true,  weight: 1.5,
+        getValue: e => e?.stdDev ?? null },
+      { label: 'sidewalk-street',      map: sidewalkStreetMap,      range: sidewalkStreetRange,      invert: false, weight: 1.25,
+        getValue: e => (e?.count > 0 ? e.sum / e.count : null) },
+      { label: 'sidewalk-neighborhood',map: sidewalkNeighborhoodMap,range: sidewalkNeighborhoodRange,invert: false, weight: 0.75,
+        getValue: e => (typeof e === 'number' ? e : null) },
+      // Transit access (target ~24%) — foundational for wheelchair mobility
+      { label: 'prt-routes',           map: prtRoutesMap,           range: prtRoutesRange,           invert: false, weight: 1.25,
+        getValue: e => (typeof e === 'number' ? e : null) },
+      { label: 'transit',              map: transitMap,             range: transitRange,             invert: false, weight: 1.0,
+        getValue: e => (e?.total > 0 ? e.accessible : null) },
+      // Socioeconomic disadvantage (target ~19%) — disability rate 2–3x higher in poorest areas
+      { label: 'adi',                  map: state.mode !== 'tracts' ? adiMap : null, range: adiRange, invert: true, weight: 1.75,
+        getValue: e => e?.avg ?? null },
+      // Population vulnerability / need indicators (target ~13%)
+      { label: 'disability',           map: disabilityMap,          range: disabilityRange,          invert: false, weight: 0.75,
+        getValue: e => disabilityPct(e) },
+      { label: 'age65',                map: ageMap,                 range: ageRange,                 invert: false, weight: 0.5,
+        getValue: e => e?.pct ?? null },
+      // OSM — supplementary, coverage varies by volunteer activity (~5%)
+      { label: 'osm',                  map: osmWheelchairMap,       range: osmRange,                 invert: false, weight: 0.5,
+        getValue: e => e?.pct ?? null },
+    ].filter(ds => ds.map !== null);
+
+    const result = new Map();
+    const scores = [];
+
+    for (const feature of geojsonData.features) {
+      const id = getDisabilityId(feature);
+      let weightedSum = 0, totalWeight = 0;
+      let datasetsUsed = 0;
+
+      for (const ds of datasets) {
+        const raw = ds.getValue(ds.map.get(id));
+        const n   = normalize(raw, ds.range.min, ds.range.max, ds.invert);
+        if (n === null) continue;
+        weightedSum += ds.weight * n;
+        totalWeight += ds.weight;
+        datasetsUsed++;
+      }
+
+      if (totalWeight === 0) {
+        result.set(id, { score: null, datasetsUsed: 0 });
+      } else {
+        const score = weightedSum / totalWeight;
+        result.set(id, { score, datasetsUsed });
+        scores.push(score);
+      }
+    }
+
+    compositeMap   = result;
+    compositeRange = scores.length > 0
+      ? { min: Math.min(...scores), max: Math.max(...scores) }
+      : { min: 0, max: 1 };
+  }
+
+  function refreshComposite() {
+    if (state.colorMode !== 'composite') return;
+    computeComposite();
+    if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+    updateLegend();
+  }
+
+  function featureStyle(feature) {
+    let fillColor;
+    if (!state.showFill) {
+      fillColor = 'transparent';
+    } else if (state.colorMode === 'disability' && disabilityMap) {
+      fillColor = disabilityColor(feature);
+    } else if (state.colorMode === 'osm' && osmWheelchairMap) {
+      fillColor = osmColor(feature);
+    } else if (state.colorMode === 'terrain' && terrainMap) {
+      fillColor = terrainColor(feature);
+    } else if (state.colorMode === 'age65' && ageMap) {
+      fillColor = ageColor(feature);
+    } else if (state.colorMode === 'transit' && transitMap) {
+      fillColor = transitColor(feature);
+    } else if (state.colorMode === 'composite' && compositeMap) {
+      fillColor = compositeColor(feature);
+    } else if (state.colorMode === 'adi' && adiMap) {
+      fillColor = adiColor(feature);
+    } else if (state.colorMode === 'sidewalk-neighborhood' && sidewalkNeighborhoodMap) {
+      fillColor = sidewalkNeighborhoodColor(feature);
+    } else if (state.colorMode === 'sidewalk-street' && sidewalkStreetMap) {
+      fillColor = sidewalkStreetColor(feature);
+    } else if (state.colorMode === 'prt-routes' && prtRoutesMap) {
+      fillColor = prtRoutesColor(feature);
+    } else {
+      fillColor = getColor(feature.properties._label || '');
+    }
+    return {
+      fillColor,
+      fillOpacity: state.opacity,
+      color: state.showBorders ? '#0d1117' : 'transparent',
+      weight: state.showBorders ? state.stroke : 0
+    };
+  }
+
+  function highlightStyle(feature) {
+    const base = featureStyle(feature);
+    return { ...base, weight: state.stroke + 1.5, color: '#58a6ff', fillOpacity: Math.min(state.opacity + 0.2, 1) };
+  }
+
+  function selectedStyle(feature) {
+    const base = featureStyle(feature);
+    return { ...base, weight: state.stroke + 2, color: '#ffffff', fillOpacity: Math.min(state.opacity + 0.25, 1) };
+  }
+
+  /* ── GeoJSON layer ── */
+  function buildGeojsonLayer(data) {
+    return L.geoJSON(data, {
+      style: featureStyle,
+      onEachFeature(feature, layer) {
+        const label = feature.properties._label || 'N/A';
+
+        layer.on({
+          mouseover(e) {
+            if (e.target === selectedLayer) return;
+            e.target.setStyle(highlightStyle(feature));
+            e.target.bringToFront();
+          },
+          mouseout(e) {
+            if (e.target === selectedLayer) return;
+            geojsonLayer.resetStyle(e.target);
+          },
+          click(e) {
+            if (selectedLayer && selectedLayer !== e.target) {
+              geojsonLayer.resetStyle(selectedLayer);
+            }
+            selectedLayer = e.target;
+            e.target.setStyle(selectedStyle(feature));
+            e.target.bringToFront();
+
+            const subtitle = state.mode === 'tracts'
+              ? 'Census Tract — Allegheny County, PA'
+              : 'ZIP Code — Pittsburgh, PA';
+
+            const id    = getDisabilityId(feature);
+            const entry = disabilityMap ? disabilityMap.get(id) : null;
+            const pct   = disabilityPct(entry);
+            let disabilityHtml = '';
+            if (pct !== null) {
+              disabilityHtml = `
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                  <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Ambulatory Disability</div>
+                  <div style="font-size:1.5rem;font-weight:700;color:#ffa726">${(pct * 100).toFixed(1)}%</div>
+                  <div style="font-size:0.78rem;color:#8b949e">${entry.count.toLocaleString()} estimated people</div>
+                  <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">ACS 2022 5-year estimates (B18105)</div>
+                </div>`;
+            } else if (disabilityMap) {
+              disabilityHtml = `<div style="margin-top:8px;font-size:0.78rem;color:#6e7681">No disability data for this area</div>`;
+            }
+
+            let osmHtml = '';
+            if (osmWheelchairMap) {
+              const osmEntry = osmWheelchairMap.get(id);
+              const osmTotal = osmEntry ? osmEntry.yes + osmEntry.limited + osmEntry.no : 0;
+              if (osmTotal > 0) {
+                const osmPct = osmEntry.yes / osmTotal;
+                osmHtml = `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                    <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">OSM Wheelchair Access</div>
+                    <div style="font-size:1.5rem;font-weight:700;color:#66bd63">${(osmPct * 100).toFixed(0)}%</div>
+                    <div style="font-size:0.78rem;color:#8b949e">fully accessible of ${osmTotal.toLocaleString()} tagged</div>
+                    <div style="font-size:0.72rem;color:#6e7681;margin-top:2px">Yes: ${osmEntry.yes} · Limited: ${osmEntry.limited} · No: ${osmEntry.no}</div>
+                    <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">OpenStreetMap (live data)</div>
+                  </div>`;
+              } else {
+                osmHtml = `<div style="margin-top:8px;font-size:0.78rem;color:#6e7681">No wheelchair-tagged locations in OSM for this area</div>`;
+              }
+            }
+
+            let terrainHtml = '';
+            if (terrainMap) {
+              const te = terrainMap.get(id);
+              if (te && te.stdDev !== null) {
+                const hilliness = te.stdDev < 10 ? 'Very flat' : te.stdDev < 25 ? 'Moderate' : te.stdDev < 45 ? 'Hilly' : 'Very hilly';
+                terrainHtml = `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                    <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Terrain</div>
+                    <div style="font-size:1.5rem;font-weight:700;color:#a6d96a">±${te.stdDev.toFixed(1)} m</div>
+                    <div style="font-size:0.78rem;color:#8b949e">${hilliness} · avg ${te.mean.toFixed(0)} m elevation</div>
+                    <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">SRTM 90m (NASA Shuttle Radar Topography Mission, 2000)</div>
+                  </div>`;
+              } else if (te) {
+                terrainHtml = `<div style="margin-top:8px;font-size:0.78rem;color:#6e7681">Insufficient terrain sample points</div>`;
+              }
+            }
+
+            let ageHtml = '';
+            if (ageMap) {
+              const ae = ageMap.get(id);
+              if (ae && ae.pct !== null) {
+                ageHtml = `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                    <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Age 65+</div>
+                    <div style="font-size:1.5rem;font-weight:700;color:#fd8d3c">${(ae.pct * 100).toFixed(1)}%</div>
+                    <div style="font-size:0.78rem;color:#8b949e">${ae.count65.toLocaleString()} residents</div>
+                    <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">ACS 2022 5-year estimates (B01001)</div>
+                  </div>`;
+              }
+            }
+
+            let transitHtml = '';
+            if (transitMap) {
+              const te = transitMap.get(id);
+              if (te && te.total > 0) {
+                transitHtml = `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                    <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Accessible Transit</div>
+                    <div style="font-size:1.5rem;font-weight:700;color:#4292c6">${te.accessible}</div>
+                    <div style="font-size:0.78rem;color:#8b949e">accessible of ${te.total} total stops</div>
+                    <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">OpenStreetMap (live data)</div>
+                  </div>`;
+              } else if (te) {
+                transitHtml = `<div style="margin-top:8px;font-size:0.78rem;color:#6e7681">No transit stops in OSM for this area</div>`;
+              }
+            }
+
+            let adiHtml = '';
+            if (adiMap && state.mode !== 'tracts') {
+              const ae = adiMap.get(feature.properties._label);
+              if (ae) {
+                const rankLabel = ae.avg <= 2 ? 'Least disadvantaged' : ae.avg <= 4 ? 'Low disadvantage' :
+                                  ae.avg <= 6 ? 'Moderate' : ae.avg <= 8 ? 'High disadvantage' : 'Most disadvantaged';
+                const rankColor = ae.avg <= 3 ? '#4393c3' : ae.avg <= 6 ? '#f4a582' : '#d6604d';
+                adiHtml = `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                    <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Neighborhood Disadvantage (ADI)</div>
+                    <div style="font-size:1.5rem;font-weight:700;color:${rankColor}">${ae.avg.toFixed(1)}<span style="font-size:0.9rem;font-weight:400;color:#8b949e"> / 10</span></div>
+                    <div style="font-size:0.78rem;color:#8b949e">${rankLabel} · ${ae.n.toLocaleString()} 9-digit ZIPs sampled</div>
+                    <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">Neighborhood Atlas 2023 (neighborhoodatlas.medicine.wisc.edu)</div>
+                  </div>`;
+              }
+            }
+
+            let compositeHtml = '';
+            if (compositeMap) {
+              const ce = compositeMap.get(id);
+              if (ce && ce.score !== null) {
+                const pct = Math.round(ce.score * 100);
+                const label2 = pct < 25 ? 'Less accessible' : pct < 50 ? 'Somewhat accessible' : pct < 75 ? 'Accessible' : 'Very accessible';
+                compositeHtml = `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                    <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Friendliness Score</div>
+                    <div style="font-size:1.5rem;font-weight:700;color:#41ab5d">${pct}<span style="font-size:0.9rem;font-weight:400;color:#8b949e">/100</span></div>
+                    <div style="font-size:0.78rem;color:#8b949e">${label2} — ${ce.datasetsUsed} of 9 datasets</div>
+                    <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">ACS 2022, SRTM 2000, Project Sidewalk, OneBusAway/WPRDC, Neighborhood Atlas 2023, OpenStreetMap</div>
+                  </div>`;
+              }
+            }
+
+            let sidewalkNhHtml = '';
+            if (sidewalkNeighborhoodMap) {
+              const score = sidewalkNeighborhoodMap.get(id);
+              if (score !== null && score !== undefined) {
+                const pct = Math.round(score * 100);
+                const lbl = pct < 25 ? 'Poor' : pct < 50 ? 'Fair' : pct < 75 ? 'Good' : 'Excellent';
+                sidewalkNhHtml = `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                    <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Sidewalk Neighborhood Score</div>
+                    <div style="font-size:1.5rem;font-weight:700;color:#41b6c4">${pct}<span style="font-size:0.9rem;font-weight:400;color:#8b949e">/100</span></div>
+                    <div style="font-size:0.78rem;color:#8b949e">${lbl} sidewalk accessibility (Project Sidewalk)</div>
+                    <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">Project Sidewalk — crowdsourced, ongoing (UW)</div>
+                  </div>`;
+              }
+            }
+
+            let sidewalkStHtml = '';
+            if (sidewalkStreetMap) {
+              const entry = sidewalkStreetMap.get(id);
+              if (entry && entry.count > 0) {
+                const avg = entry.sum / entry.count;
+                const pct = Math.round(avg * 100);
+                const lbl = pct < 25 ? 'Poor' : pct < 50 ? 'Fair' : pct < 75 ? 'Good' : 'Excellent';
+                sidewalkStHtml = `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                    <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Sidewalk Street Score</div>
+                    <div style="font-size:1.5rem;font-weight:700;color:#5aae61">${pct}<span style="font-size:0.9rem;font-weight:400;color:#8b949e">/100</span></div>
+                    <div style="font-size:0.78rem;color:#8b949e">${lbl} · avg of ${entry.count} audited streets</div>
+                    <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">Project Sidewalk — crowdsourced, ongoing (UW)</div>
+                  </div>`;
+              }
+            }
+
+            document.getElementById('info-content').innerHTML =
+              `<div id="info-zip">${label}</div>
+               <div id="info-sub">${subtitle}</div>
+               ${compositeHtml}
+               ${disabilityHtml}
+               ${osmHtml}
+               ${terrainHtml}
+               ${ageHtml}
+               ${transitHtml}
+               ${adiHtml}
+               ${sidewalkNhHtml}
+               ${sidewalkStHtml}
+               ${(() => {
+                 if (!prtRoutesMap) return '';
+                 const count = prtRoutesMap.get(id);
+                 if (!count) return '';
+                 const density = count < 5 ? 'Low coverage' : count < 15 ? 'Moderate coverage' : count < 30 ? 'High coverage' : 'Very high coverage';
+                 return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #21262d">
+                   <div style="font-size:0.68rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px">Bus Routes</div>
+                   <div style="font-size:1.5rem;font-weight:700;color:#1d91c0">${count}<span style="font-size:0.9rem;font-weight:400;color:#8b949e"> routes</span></div>
+                   <div style="font-size:0.78rem;color:#8b949e">${density} · distinct routes with stops in this area</div>
+                   <div style="font-size:0.65rem;color:#6e7681;margin-top:3px">${state.city === 'pittsburgh' ? 'WPRDC / PRT + WCTA, BCTA, NCATA, MMVTA GTFS (2025)' : 'OneBusAway Puget Sound API (live, all agencies)'}</div>
+                 </div>`;
+               })()}`;
+
+            map.fitBounds(e.target.getBounds(), { padding: [60, 60], maxZoom: 14 });
+            L.DomEvent.stopPropagation(e);
+          }
+        });
+      }
+    });
+  }
+
+  /* ── Labels ── */
+  function buildLabels(data) {
+    const group = L.layerGroup();
+    data.features.forEach(feature => {
+      const zip = feature.properties._label;
+      if (!zip || zip === 'N/A') return;
+      const bounds = L.geoJSON(feature).getBounds();
+      const center = bounds.getCenter();
+      const icon = L.divIcon({
+        className: 'zip-label',
+        html: zip,
+        iconAnchor: [18, 7]
+      });
+      L.marker([center.lat, center.lng], { icon, interactive: false }).addTo(group);
+    });
+    return group;
+  }
+
+  /* ── Render ── */
+  function renderMap() {
+    if (!geojsonData) return;
+
+    if (geojsonLayer) map.removeLayer(geojsonLayer);
+    if (labelGroup)   map.removeLayer(labelGroup);
+
+    geojsonLayer = buildGeojsonLayer(geojsonData).addTo(map);
+
+    if (state.showLabels) {
+      labelGroup = buildLabels(geojsonData);
+      labelGroup.addTo(map);
+    }
+
+    // Re-apply selected style if a zip was selected
+    if (selectedLayer) {
+      // After re-render selectedLayer is stale; reset info
+      selectedLayer = null;
+      document.getElementById('info-content').innerHTML =
+        '<span style="color:#6e7681">Click any block to inspect</span>';
+    }
+  }
+
+  /* ── Disability coloring ── */
+
+  function updateLegend() {
+    const section = document.getElementById('legend-section');
+    if (state.colorMode === 'disability' && disabilityMap) {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Ambulatory Disability';
+      document.getElementById('legend-gradient').innerHTML =
+        SEQ_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      const fmt = p => (p * 100).toFixed(1) + '%';
+      document.getElementById('legend-min').textContent = fmt(disabilityRange.min);
+      document.getElementById('legend-max').textContent = fmt(disabilityRange.max);
+      document.getElementById('legend-desc').textContent =
+        '% of population with ambulatory difficulty (ACS 2022, B18105)';
+    } else if (state.colorMode === 'osm' && osmWheelchairMap) {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'OSM Wheelchair Access';
+      document.getElementById('legend-gradient').innerHTML =
+        OSM_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      const fmt = p => (p * 100).toFixed(0) + '%';
+      document.getElementById('legend-min').textContent = fmt(osmRange.min);
+      document.getElementById('legend-max').textContent = fmt(osmRange.max);
+      document.getElementById('legend-desc').textContent =
+        '% of wheelchair-tagged OSM locations that are fully accessible (OpenStreetMap)';
+    } else if (state.colorMode === 'terrain' && terrainMap) {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Terrain Traversability';
+      document.getElementById('legend-gradient').innerHTML =
+        TERRAIN_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      const fmt = v => v.toFixed(1) + ' m';
+      document.getElementById('legend-min').textContent = '▲ Flat ' + fmt(terrainRange.min);
+      document.getElementById('legend-max').textContent = 'Hilly ' + fmt(terrainRange.max) + ' ▲';
+      document.getElementById('legend-desc').textContent =
+        'Elevation std. deviation within area (SRTM 90m) — lower = flatter = more wheelchair-friendly';
+    } else if (state.colorMode === 'age65' && ageMap) {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Age 65+ Population';
+      document.getElementById('legend-gradient').innerHTML =
+        AGE_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      const fmt = p => (p * 100).toFixed(1) + '%';
+      document.getElementById('legend-min').textContent = fmt(ageRange.min);
+      document.getElementById('legend-max').textContent = fmt(ageRange.max);
+      document.getElementById('legend-desc').textContent =
+        '% of population age 65 or older (ACS 2022, B01001)';
+    } else if (state.colorMode === 'transit' && transitMap) {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Accessible Transit Stops';
+      document.getElementById('legend-gradient').innerHTML =
+        TRANSIT_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      document.getElementById('legend-min').textContent = '0 stops';
+      document.getElementById('legend-max').textContent = transitRange.max + ' stops';
+      document.getElementById('legend-desc').textContent =
+        'Count of transit stops tagged wheelchair=yes (OpenStreetMap)';
+    } else if (state.colorMode === 'composite' && compositeMap) {
+      const loaded = compositeMap ? [...new Set([...compositeMap.values()].map(v => v.datasetsUsed))].sort().pop() ?? 0 : 0;
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Wheelchair Friendliness';
+      document.getElementById('legend-gradient').innerHTML =
+        COMPOSITE_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      document.getElementById('legend-min').textContent = 'Less friendly';
+      document.getElementById('legend-max').textContent = 'More friendly';
+      document.getElementById('legend-desc').textContent =
+        `Combined score — terrain, sidewalk audits, transit, ADI, disability & age (${loaded}/9 datasets loaded)`;
+    } else if (state.colorMode === 'adi') {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Neighborhood Disadvantage (ADI)';
+      document.getElementById('legend-gradient').innerHTML =
+        ADI_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      if (state.mode === 'tracts') {
+        document.getElementById('legend-min').textContent = 'ZIP level only';
+        document.getElementById('legend-max').textContent = '';
+        document.getElementById('legend-desc').textContent =
+          'ADI data is aggregated at ZIP code level — switch to ZIP codes to see this layer';
+      } else {
+        document.getElementById('legend-min').textContent = '1 Least disadvantaged';
+        document.getElementById('legend-max').textContent = '10 Most disadvantaged';
+        document.getElementById('legend-desc').textContent =
+          'Area Deprivation Index state rank (Neighborhood Atlas 2023) — averaged from 9-digit ZIPs';
+      }
+    } else if (state.colorMode === 'sidewalk-neighborhood') {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Sidewalk Neighborhood Score';
+      document.getElementById('legend-gradient').innerHTML =
+        PSNH_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      document.getElementById('legend-min').textContent = '0 Inaccessible';
+      document.getElementById('legend-max').textContent = '1 Accessible';
+      document.getElementById('legend-desc').textContent =
+        'Project Sidewalk neighborhood accessibility score — based on crowdsourced sidewalk audits';
+    } else if (state.colorMode === 'sidewalk-street') {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Sidewalk Street Score';
+      document.getElementById('legend-gradient').innerHTML =
+        PSST_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      document.getElementById('legend-min').textContent = '0 Inaccessible';
+      document.getElementById('legend-max').textContent = '1 Accessible';
+      document.getElementById('legend-desc').textContent =
+        'Project Sidewalk avg street accessibility score per area — audited streets only';
+    } else if (state.colorMode === 'prt-routes') {
+      section.style.display = 'block';
+      document.getElementById('legend-title').textContent = 'Bus Route Coverage';
+      document.getElementById('legend-gradient').innerHTML =
+        PRT_COLORS.map(c => `<span style="flex:1;background:${c};display:inline-block"></span>`).join('');
+      document.getElementById('legend-min').textContent = prtRoutesRange.min + ' routes';
+      document.getElementById('legend-max').textContent = prtRoutesRange.max + ' routes';
+      document.getElementById('legend-desc').textContent =
+        state.city === 'pittsburgh'
+          ? 'Distinct transit routes serving each area — PRT plus WCTA, BCTA, NCATA &amp; MMVTA regional agencies'
+          : 'Distinct transit routes serving each area — King County Metro, Kitsap Transit, Sound Transit, Community Transit, Pierce Transit &amp; more (OneBusAway API)';
+    } else {
+      section.style.display = 'none';
+    }
+  }
+
+  function pctRange(dmap) {
+    const pcts = [...dmap.values()]
+      .map(v => disabilityPct(v))
+      .filter(p => p !== null);
+    return { min: Math.min(...pcts), max: Math.max(...pcts) };
+  }
+
+  async function fetchDisabilityData(geoData) {
+    const CR = 'https://api.censusreporter.org/1.0/data/show/latest';
+    const DVARS = ['B18105004','B18105007','B18105010','B18105013','B18105016','B18105019',
+                   'B18105023','B18105026','B18105029','B18105032','B18105035','B18105038'];
+    const sumD = est => DVARS.reduce((s, v) => s + (parseFloat(est[v]) || 0), 0);
+
+    if (state.mode === 'tracts') {
+      // Use pre-generated data for Pittsburgh; fetch live for other cities
+      if (state.city === 'pittsburgh') {
+        const dmap = await Census.fetchByTracts();
+        return { dmap, range: pctRange(dmap) };
+      }
+      const cr = await fetch(`${CR}?table_ids=B18105&geo_ids=${city().tractGeoId}`)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+      const result = new Map();
+      for (const [geoid, tables] of Object.entries(cr.data)) {
+        const id = geoid.replace('14000US', '');
+        const est = tables.B18105.estimate;
+        result.set(id, { count: Math.round(sumD(est)), totalPop: Math.max(0, Math.round(parseFloat(est.B18105001) || 0)) });
+      }
+      return { dmap: result, range: pctRange(result) };
+    }
+
+    const zips = [...new Set(
+      geoData.features
+        .map(f => f.properties._label)
+        .filter(z => z && z !== 'N/A' && /^\d{5}$/.test(z))
+    )];
+
+    // Use pre-generated data for Pittsburgh; fetch live for other cities
+    if (state.city === 'pittsburgh') {
+      const dmap = await Census.fetchByZips(zips);
+      return { dmap, range: pctRange(dmap) };
+    }
+    const result = new Map();
+    const chunks = [];
+    for (let i = 0; i < zips.length; i += 25) chunks.push(zips.slice(i, i + 25));
+    for (let i = 0; i < chunks.length; i++) {
+      const geoIds = chunks[i].map(z => `86000US${z}`).join(',');
+      const cr = await fetch(`${CR}?table_ids=B18105&geo_ids=${geoIds}`)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+      for (const [geoid, tables] of Object.entries(cr.data)) {
+        const zip = geoid.replace('86000US', '');
+        const est = tables.B18105.estimate;
+        result.set(zip, { count: Math.round(sumD(est)), totalPop: Math.max(0, Math.round(parseFloat(est.B18105001) || 0)) });
+      }
+      if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 300));
+    }
+    return { dmap: result, range: pctRange(result) };
+  }
+
+  /* ── Status bar ── */
+  function setStatus(msg, kind) {
+    document.getElementById('status-text').textContent = msg;
+    const dot = document.getElementById('status-dot');
+    dot.className = '';
+    if (kind === 'ready') dot.classList.add('ready');
+    else if (kind === 'error') dot.classList.add('error');
+  }
+
+  /* ── Data sources ── */
+
+  // Source 1: Census TIGERweb — auto-detect the ZCTA layer index from service metadata
+  async function fetchCensus() {
+    const BASE = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/PUMA_TAD_TAZ_UGA_ZCTA/MapServer';
+    const meta = await fetch(BASE + '?f=json').then(r => r.json());
+    const found = (meta.layers || []).find(l =>
+      l.name && (l.name.toUpperCase().includes('ZCTA') || l.name.toUpperCase().includes('ZIP'))
+    );
+    const layerId = found ? found.id : 2;
+
+    const url = `${BASE}/${layerId}/query` +
+      `?geometry=${city().tigerBbox}` +
+      '&geometryType=esriGeometryEnvelope' +
+      '&inSR=4326' +
+      '&spatialRel=esriSpatialRelIntersects' +
+      '&outFields=ZCTA5' +
+      '&returnGeometry=true' +
+      '&f=geojson' +
+      '&outSR=4326';
+
+    const data = await fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    if (!data.features || data.features.length === 0) throw new Error('Census returned no features');
+    data.features.forEach(f => { f.properties._label = f.properties.ZCTA5 || 'N/A'; });
+    return data;
+  }
+
+  // Source 2: OpenStreetMap Overpass API — postal_code boundary relations
+  async function fetchOverpass() {
+    const query =
+      `[out:json][timeout:90];(relation["boundary"="postal_code"](${city().overpassBbox}););out geom;`;
+
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query)
+    });
+    if (!resp.ok) throw new Error('Overpass HTTP ' + resp.status);
+
+    const osmData = await resp.json();
+    const geojson = osmtogeojson(osmData);
+
+    // Keep only polygon features and normalise the zip property to ZCTA5
+    geojson.features = geojson.features
+      .filter(f => f.geometry &&
+        (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'))
+      .map(f => {
+        const zip = f.properties.postal_code ||
+                    f.properties.zip_code     ||
+                    f.properties['addr:postcode'] ||
+                    f.properties.ref          || 'N/A';
+        return { ...f, properties: { ...f.properties, ZCTA5: zip, _label: zip } };
+      });
+
+    if (geojson.features.length === 0) throw new Error('Overpass returned no polygon features');
+    return geojson;
+  }
+
+  // Source 3: Census TIGERweb census tracts (Allegheny County bounding box)
+  async function fetchCensusTracts() {
+    const BASE = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer';
+    const meta = await fetch(BASE + '?f=json').then(r => r.json());
+    const found = (meta.layers || []).find(l =>
+      l.name && l.name.toUpperCase().includes('TRACT') && !l.name.toUpperCase().includes('BLOCK')
+    );
+    const layerId = found ? found.id : 2;
+
+    const url = `${BASE}/${layerId}/query` +
+      `?geometry=${city().tigerBbox}` +
+      '&geometryType=esriGeometryEnvelope' +
+      '&inSR=4326' +
+      '&spatialRel=esriSpatialRelIntersects' +
+      '&outFields=TRACT,GEOID,NAME' +
+      '&returnGeometry=true' +
+      '&f=geojson' +
+      '&outSR=4326';
+
+    const data = await fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    if (!data.features || data.features.length === 0) throw new Error('Census returned no tract features');
+    data.features.forEach(f => {
+      f.properties._label = formatTract(f.properties.TRACT);
+    });
+    return data;
+  }
+
+  // ── Point-in-polygon (ray-casting, outer ring only) ──────────────────────────
+  function raycastRing(point, ring) {
+    const [x, y] = point;
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1];
+      const xj = ring[j][0], yj = ring[j][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  function pointInFeature(point, feature) {
+    const { type, coordinates } = feature.geometry;
+    if (type === 'Polygon')      return raycastRing(point, coordinates[0]);
+    if (type === 'MultiPolygon') return coordinates.some(poly => raycastRing(point, poly[0]));
+    return false;
+  }
+
+  // ── OSM wheelchair data ───────────────────────────────────────────────────────
+  async function fetchOsmData(geoData) {
+    // Simplified query: fetch all wheelchair-tagged nodes/ways, filter values client-side
+    const bb = city().overpassBbox;
+    const query =
+      `[out:json][timeout:90];(node["wheelchair"](${bb});way["wheelchair"](${bb}););out center;`;
+
+    const encoded = encodeURIComponent(query);
+    const endpoints = [
+      'https://overpass-api.de/api/interpreter',
+      'https://lz4.overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter'
+    ];
+
+    let osmJson = null;
+    let lastErr = '';
+    for (const base of endpoints) {
+      try {
+        const resp = await fetch(base + '?data=' + encoded);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        osmJson = await resp.json();
+        if (!Array.isArray(osmJson.elements)) throw new Error('Bad response shape');
+        break;
+      } catch (e) {
+        lastErr = e.message;
+        console.warn(`Overpass ${base} failed:`, e.message);
+        osmJson = null;
+      }
+    }
+    if (!osmJson) throw new Error(lastErr || 'All Overpass endpoints failed');
+
+    // Precompute bounding boxes for fast pre-filter before full polygon check
+    const featureBboxes = geoData.features.map(f => {
+      let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      const rings = f.geometry.type === 'Polygon'
+        ? f.geometry.coordinates
+        : f.geometry.coordinates.flat(1);
+      for (const ring of rings) {
+        for (const [lon, lat] of ring) {
+          if (lon < minLon) minLon = lon;
+          if (lon > maxLon) maxLon = lon;
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+        }
+      }
+      return { minLon, maxLon, minLat, maxLat, feature: f, id: getDisabilityId(f) };
+    });
+
+    // Initialize result map with zero counts for every area
+    const result = new Map();
+    featureBboxes.forEach(({ id }) => result.set(id, { yes: 0, limited: 0, no: 0, pct: null }));
+
+    // Assign each OSM element to its enclosing area
+    for (const el of osmJson.elements) {
+      const lat = el.lat ?? el.center?.lat;
+      const lon = el.lon ?? el.center?.lon;
+      if (lat == null || lon == null) continue;
+      const wheelchair = el.tags?.wheelchair;
+      if (!wheelchair || !['yes', 'limited', 'no'].includes(wheelchair)) continue;
+
+      for (const fb of featureBboxes) {
+        if (lon < fb.minLon || lon > fb.maxLon || lat < fb.minLat || lat > fb.maxLat) continue;
+        if (pointInFeature([lon, lat], fb.feature)) {
+          const entry = result.get(fb.id);
+          if (entry) entry[wheelchair]++;
+          break;
+        }
+      }
+    }
+
+    // Compute percentage and collect range
+    const pcts = [];
+    for (const entry of result.values()) {
+      const total = entry.yes + entry.limited + entry.no;
+      entry.pct = total > 0 ? entry.yes / total : null;
+      if (entry.pct !== null) pcts.push(entry.pct);
+    }
+
+    const range = pcts.length > 0
+      ? { min: Math.min(...pcts), max: Math.max(...pcts) }
+      : { min: 0, max: 1 };
+
+    return { dmap: result, range };
+  }
+
+  // ── Terrain elevation data (OpenTopoData / SRTM 90m) ─────────────────────────
+  async function fetchTerrainData(geoData) {
+    const STEP = 0.02; // ~2 km grid spacing
+    const { latMin: LAT_MIN, latMax: LAT_MAX, lonMin: LON_MIN, lonMax: LON_MAX } = city();
+
+    // Precompute feature bboxes
+    const featureBboxes = geoData.features.map(f => {
+      let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      const rings = f.geometry.type === 'Polygon'
+        ? f.geometry.coordinates : f.geometry.coordinates.flat(1);
+      for (const ring of rings) {
+        for (const [lon, lat] of ring) {
+          if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon;
+          if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+        }
+      }
+      return { minLon, maxLon, minLat, maxLat, feature: f, id: getDisabilityId(f) };
+    });
+
+    // Assign grid points to their enclosing area before any API calls
+    const assignments = [];
+    for (let lat = LAT_MIN; lat <= LAT_MAX + 0.001; lat += STEP) {
+      for (let lon = LON_MIN; lon <= LON_MAX + 0.001; lon += STEP) {
+        const la = parseFloat(lat.toFixed(4)), lo = parseFloat(lon.toFixed(4));
+        for (const fb of featureBboxes) {
+          if (lo < fb.minLon || lo > fb.maxLon || la < fb.minLat || la > fb.maxLat) continue;
+          if (pointInFeature([lo, la], fb.feature)) { assignments.push({ lat: la, lon: lo, id: fb.id }); break; }
+        }
+      }
+    }
+    if (assignments.length === 0) throw new Error('No grid points assigned to areas');
+
+    // Fetch one batch of elevations, trying multiple APIs in order
+    async function fetchBatchElevations(batch) {
+      const locStr = batch.map(p => `${p.lat},${p.lon}`).join('|');
+
+      // 1. OpenTopoData — GET (no preflight, rate-limited to 1 req/s)
+      try {
+        const url = 'https://api.opentopodata.org/v1/srtm90m?locations=' + encodeURIComponent(locStr);
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.status === 'OK') return { elevs: data.results.map(r => r.elevation ?? null), api: 'opentopodata' };
+        }
+      } catch (e) { console.warn('OpenTopoData GET failed:', e.message); }
+
+      // 2. Open-Elevation — POST JSON fallback
+      try {
+        const resp = await fetch('https://api.open-elevation.com/api/v1/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locations: batch.map(p => ({ latitude: p.lat, longitude: p.lon })) })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          return { elevs: data.results.map(r => r.elevation ?? null), api: 'open-elevation' };
+        }
+      } catch (e) { console.warn('Open-Elevation POST failed:', e.message); }
+
+      // 3. USGS Elevation Point Query Service — parallel individual GETs
+      try {
+        const elevs = await Promise.all(batch.map(async p => {
+          const url = `https://epqs.nationalmap.gov/v1/json?x=${p.lon}&y=${p.lat}&wkid=4326&units=Meters&includeDate=false`;
+          const r = await fetch(url);
+          if (!r.ok) return null;
+          const d = await r.json();
+          const v = parseFloat(d.value);
+          return isNaN(v) ? null : v;
+        }));
+        return { elevs, api: 'usgs' };
+      } catch (e) { console.warn('USGS EPQS failed:', e.message); }
+
+      throw new Error('All elevation APIs failed');
+    }
+
+    const BATCH = 100;
+    const elevations = new Array(assignments.length).fill(null);
+    const totalBatches = Math.ceil(assignments.length / BATCH);
+    let lastApi = null;
+
+    for (let i = 0; i < assignments.length; i += BATCH) {
+      const bNum = Math.floor(i / BATCH) + 1;
+      setStatus(`Fetching terrain elevation (${bNum}/${totalBatches})…`, null);
+      const batch = assignments.slice(i, i + BATCH);
+      const { elevs, api } = await fetchBatchElevations(batch);
+      elevs.forEach((elev, j) => { if (elev != null) elevations[i + j] = elev; });
+      lastApi = api;
+      // OpenTopoData requires 1 req/s; USGS parallelises internally so no delay needed
+      if (api === 'opentopodata' && i + BATCH < assignments.length) {
+        await new Promise(r => setTimeout(r, 1100));
+      }
+    }
+
+    // Group elevations by area
+    const areaElevs = new Map();
+    featureBboxes.forEach(({ id }) => areaElevs.set(id, []));
+    assignments.forEach((p, i) => { if (elevations[i] != null) areaElevs.get(p.id)?.push(elevations[i]); });
+
+    // Compute std dev (hilliness) per area
+    const result = new Map();
+    const stdDevs = [];
+    for (const [id, elevs] of areaElevs) {
+      if (elevs.length < 2) {
+        result.set(id, { stdDev: null, mean: elevs[0] ?? null, count: elevs.length }); continue;
+      }
+      const mean = elevs.reduce((a, b) => a + b, 0) / elevs.length;
+      const variance = elevs.reduce((a, b) => a + (b - mean) ** 2, 0) / elevs.length;
+      const stdDev = Math.sqrt(variance);
+      result.set(id, { stdDev, mean, count: elevs.length });
+      stdDevs.push(stdDev);
+    }
+    const range = stdDevs.length > 0
+      ? { min: Math.min(...stdDevs), max: Math.max(...stdDevs) }
+      : { min: 0, max: 100 };
+    return { dmap: result, range };
+  }
+
+  async function fetchAndApplyTerrainData(geoData) {
+    const noun = state.mode === 'tracts' ? 'tracts' : 'ZIP codes';
+    if (window.EXTRA_DATA?.terrain && state.city === 'pittsburgh') {
+      const dmap = buildFromPreloaded(window.EXTRA_DATA.terrain, v => ({ ...v }));
+      const stdDevs = [...dmap.values()].map(v => v.stdDev).filter(s => s !== null);
+      terrainMap   = dmap;
+      terrainRange = stdDevs.length ? { min: Math.min(...stdDevs), max: Math.max(...stdDevs) } : { min: 0, max: 100 };
+      refreshComposite(); renderMap(); updateLegend();
+      setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+      return;
+    }
+    try {
+      const { dmap, range } = await fetchTerrainData(geoData);
+      terrainMap = dmap; terrainRange = range;
+      refreshComposite(); renderMap(); updateLegend();
+      setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+    } catch (err) {
+      console.warn('Terrain data unavailable:', err);
+      setStatus(`Terrain data unavailable: ${err.message}`, 'error');
+    }
+  }
+
+  // ── Age 65+ data (Census Reporter, ACS B01001) ───────────────────────────────
+  async function fetchAgeData(geoData) {
+    const CR = 'https://api.censusreporter.org/1.0/data/show/latest';
+    const VARS = [
+      'B01001020','B01001021','B01001022','B01001023','B01001024','B01001025', // Male 65+
+      'B01001044','B01001045','B01001046','B01001047','B01001048','B01001049'  // Female 65+
+    ];
+    const sumAge65 = est => VARS.reduce((s, v) => s + (parseFloat(est[v]) || 0), 0);
+    const result = new Map();
+
+    if (state.mode === 'tracts') {
+      const cr = await fetch(`${CR}?table_ids=B01001&geo_ids=${city().tractGeoId}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+      for (const [geoid, tables] of Object.entries(cr.data)) {
+        const id  = geoid.replace('14000US', '');
+        const est = tables.B01001.estimate;
+        result.set(id, { count65: Math.round(sumAge65(est)), totalPop: Math.max(0, Math.round(parseFloat(est.B01001001) || 0)) });
+      }
+    } else {
+      const zips = [...new Set(geoData.features.map(f => f.properties._label).filter(z => z && /^\d{5}$/.test(z)))];
+      const chunks = [];
+      for (let i = 0; i < zips.length; i += 25) chunks.push(zips.slice(i, i + 25));
+      for (let i = 0; i < chunks.length; i++) {
+        const geoIds = chunks[i].map(z => `86000US${z}`).join(',');
+        const cr = await fetch(`${CR}?table_ids=B01001&geo_ids=${geoIds}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+        for (const [geoid, tables] of Object.entries(cr.data)) {
+          const zip = geoid.replace('86000US', '');
+          const est = tables.B01001.estimate;
+          result.set(zip, { count65: Math.round(sumAge65(est)), totalPop: Math.max(0, Math.round(parseFloat(est.B01001001) || 0)) });
+        }
+        if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 300));
+      }
+    }
+
+    const pcts = [];
+    for (const entry of result.values()) {
+      entry.pct = entry.totalPop > 0 ? entry.count65 / entry.totalPop : null;
+      if (entry.pct !== null) pcts.push(entry.pct);
+    }
+    const range = pcts.length > 0 ? { min: Math.min(...pcts), max: Math.max(...pcts) } : { min: 0, max: 0.3 };
+    return { dmap: result, range };
+  }
+
+  async function fetchAndApplyAgeData(geoData) {
+    const noun = state.mode === 'tracts' ? 'tracts' : 'ZIP codes';
+    if (window.EXTRA_DATA?.age65 && state.city === 'pittsburgh') {
+      const dmap = buildFromPreloaded(window.EXTRA_DATA.age65, v => ({
+        ...v, pct: v.totalPop > 0 ? v.count65 / v.totalPop : null
+      }));
+      const pcts = [...dmap.values()].map(v => v.pct).filter(p => p !== null);
+      ageMap   = dmap;
+      ageRange = pcts.length ? { min: Math.min(...pcts), max: Math.max(...pcts) } : { min: 0, max: 0.3 };
+      refreshComposite(); renderMap(); updateLegend();
+      setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+      return;
+    }
+    setStatus(`${geoData.features.length} ${noun} — fetching age 65+ data…`, null);
+    try {
+      const { dmap, range } = await fetchAgeData(geoData);
+      ageMap = dmap; ageRange = range;
+      refreshComposite(); renderMap(); updateLegend();
+      setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+    } catch (err) {
+      console.warn('Age data unavailable:', err);
+      setStatus(`Age data unavailable: ${err.message}`, 'error');
+    }
+  }
+
+  // ── Accessible transit stops (OSM Overpass) ───────────────────────────────────
+  async function fetchTransitData(geoData) {
+    // Single simple tag — smallest possible query to avoid server timeout
+    const query = `[out:json][timeout:90];(node["highway"="bus_stop"](${city().overpassBbox}););out;`;
+    const encoded = encodeURIComponent(query);
+    const endpoints = [
+      'https://overpass-api.de/api/interpreter',
+      'https://lz4.overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter'
+    ];
+
+    let osmJson = null;
+    let lastErr2 = '';
+    for (const base of endpoints) {
+      // Two attempts per endpoint — 504 often clears on an immediate retry
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
+          const resp = await fetch(base + '?data=' + encoded);
+          if (resp.status === 504 && attempt === 0) continue; // retry once on gateway timeout
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          osmJson = await resp.json();
+          if (Array.isArray(osmJson.elements)) break;
+          osmJson = null;
+        } catch (e) { lastErr2 = e.message; console.warn(`Overpass ${base} attempt ${attempt + 1}:`, e.message); osmJson = null; }
+      }
+      if (osmJson) break;
+    }
+    if (!osmJson) throw new Error(lastErr2 || 'All Overpass endpoints failed');
+
+    const featureBboxes = geoData.features.map(f => {
+      let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      const rings = f.geometry.type === 'Polygon' ? f.geometry.coordinates : f.geometry.coordinates.flat(1);
+      for (const ring of rings) for (const [lon, lat] of ring) {
+        if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon;
+        if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+      }
+      return { minLon, maxLon, minLat, maxLat, feature: f, id: getDisabilityId(f) };
+    });
+
+    const result = new Map();
+    featureBboxes.forEach(({ id }) => result.set(id, { accessible: 0, total: 0 }));
+
+    for (const el of osmJson.elements) {
+      if (el.lat == null || el.lon == null) continue;
+      for (const fb of featureBboxes) {
+        if (el.lon < fb.minLon || el.lon > fb.maxLon || el.lat < fb.minLat || el.lat > fb.maxLat) continue;
+        if (pointInFeature([el.lon, el.lat], fb.feature)) {
+          const entry = result.get(fb.id);
+          if (entry) {
+            entry.total++;
+            if (el.tags?.wheelchair === 'yes') entry.accessible++;
+          }
+          break;
+        }
+      }
+    }
+
+    const counts = [...result.values()].filter(e => e.total > 0).map(e => e.accessible);
+    const range = counts.length > 0 ? { min: 0, max: Math.max(...counts) } : { min: 0, max: 1 };
+    return { dmap: result, range };
+  }
+
+  async function fetchAndApplyTransitData(geoData) {
+    const noun = state.mode === 'tracts' ? 'tracts' : 'ZIP codes';
+    if (window.EXTRA_DATA?.transit && state.city === 'pittsburgh') {
+      const dmap = buildFromPreloaded(window.EXTRA_DATA.transit, v => ({ ...v }));
+      const counts = [...dmap.values()].filter(v => v.total > 0).map(v => v.accessible);
+      transitMap   = dmap;
+      transitRange = counts.length ? { min: 0, max: Math.max(...counts) } : { min: 0, max: 1 };
+      refreshComposite(); renderMap(); updateLegend();
+      setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+      return;
+    }
+    setStatus(`${geoData.features.length} ${noun} — fetching transit stop data…`, null);
+    try {
+      const { dmap, range } = await fetchTransitData(geoData);
+      transitMap = dmap; transitRange = range;
+      refreshComposite(); renderMap(); updateLegend();
+      setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+    } catch (err) {
+      console.warn('Transit data unavailable:', err);
+      setStatus(`Transit data unavailable: ${err.message}`, 'error');
+    }
+  }
+
+  function buildFromPreloaded(raw, computeEntry) {
+    const modeKey = state.mode === 'tracts' ? 'tracts' : 'zipcodes';
+    return new Map(Object.entries(raw[modeKey] || {}).map(([id, v]) => [id, computeEntry(v)]));
+  }
+
+  async function fetchAndApplyOsmData(geoData) {
+    const noun = state.mode === 'tracts' ? 'tracts' : 'ZIP codes';
+    if (window.EXTRA_DATA?.osmWheelchair && state.city === 'pittsburgh') {
+      const dmap = buildFromPreloaded(window.EXTRA_DATA.osmWheelchair, v => {
+        const total = v.yes + v.limited + v.no;
+        return { ...v, pct: total > 0 ? v.yes / total : null };
+      });
+      const pcts = [...dmap.values()].map(v => v.pct).filter(p => p !== null);
+      osmWheelchairMap = dmap;
+      osmRange = pcts.length ? { min: Math.min(...pcts), max: Math.max(...pcts) } : { min: 0, max: 1 };
+      refreshComposite(); renderMap(); updateLegend();
+      setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+      return;
+    }
+    setStatus(`${geoData.features.length} ${noun} — fetching OSM wheelchair data…`, null);
+    try {
+      const { dmap, range } = await fetchOsmData(geoData);
+      osmWheelchairMap = dmap; osmRange = range;
+      refreshComposite(); renderMap(); updateLegend();
+      setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+    } catch (err) {
+      console.warn('OSM wheelchair data unavailable:', err);
+      setStatus(`OSM data unavailable: ${err.message}`, 'error');
+    }
+  }
+
+  async function loadData() {
+    if (state.mode === 'tracts') {
+      setStatus('Fetching Census Tracts…', null);
+      return fetchCensusTracts();
+    }
+    setStatus('Fetching ZIP codes from Census TIGERweb…', null);
+    try {
+      return await fetchCensus();
+    } catch (e) {
+      console.warn('Census failed:', e.message);
+    }
+    setStatus('Trying OpenStreetMap Overpass (may take ~10 s)…', null);
+    return fetchOverpass();
+  }
+
+  function applyData(geoData) {
+    geojsonData      = geoData;
+    disabilityMap    = null;
+    osmWheelchairMap = null;
+    terrainMap       = null;
+    ageMap           = null;
+    transitMap       = null;
+    compositeMap     = null;
+    adiMap                  = null;
+    sidewalkNeighborhoodMap = null;
+    sidewalkStreetMap       = null;
+    prtRoutesMap            = null;
+    renderMap();
+    map.fitBounds(city().bounds);
+    const noun = state.mode === 'tracts' ? 'tracts' : 'ZIP codes';
+    document.getElementById('info-title').textContent =
+      state.mode === 'tracts' ? 'Selected Tract' : 'Selected ZIP Code';
+    setStatus(`${geoData.features.length} ${noun} — fetching data…`, null);
+
+    fetchDisabilityData(geoData)
+      .then(({ dmap, range }) => {
+        disabilityMap   = dmap;
+        disabilityRange = range;
+        if (state.colorMode === 'disability') { renderMap(); updateLegend(); }
+        if (state.colorMode !== 'osm') {
+          setStatus(`${geoData.features.length} ${noun} loaded`, 'ready');
+        }
+        refreshComposite();
+      })
+      .catch(err => {
+        console.warn('Disability data unavailable:', err);
+        if (state.colorMode !== 'osm') {
+          setStatus(`${geoData.features.length} ${noun} loaded (disability data unavailable)`, 'ready');
+        }
+      });
+
+    if (state.colorMode === 'adi') { fetchAdiData(); if (geojsonLayer) geojsonLayer.setStyle(featureStyle); updateLegend(); }
+    if (state.colorMode === 'sidewalk-neighborhood') fetchAndApplySidewalkNeighborhoodData(geoData).catch(console.warn);
+    if (state.colorMode === 'sidewalk-street')       fetchAndApplySidewalkStreetData(geoData).catch(console.warn);
+    if (state.colorMode === 'prt-routes')            fetchAndApplyPrtRoutesData(geoData).catch(console.warn);
+    if (state.colorMode === 'osm')     fetchAndApplyOsmData(geoData);
+    if (state.colorMode === 'terrain') fetchAndApplyTerrainData(geoData);
+    if (state.colorMode === 'age65')   fetchAndApplyAgeData(geoData);
+    if (state.colorMode === 'transit') fetchAndApplyTransitData(geoData);
+    if (state.colorMode === 'composite') {
+      fetchAndApplyOsmData(geoData);
+      fetchAndApplyTerrainData(geoData);
+      fetchAndApplyAgeData(geoData);
+      fetchAndApplyTransitData(geoData);
+    }
+  }
+
+  loadData()
+    .then(applyData)
+    .catch(err => {
+      console.error(err);
+      setStatus('All data sources failed — check network / console', 'error');
+    });
+
+  // Deselect on map click
+  map.on('click', () => {
+    if (selectedLayer) {
+      geojsonLayer.resetStyle(selectedLayer);
+      selectedLayer = null;
+      document.getElementById('info-content').innerHTML =
+        '<span style="color:#6e7681">Click any block to inspect</span>';
+    }
+  });
+
+  /* ── Sidebar controls ── */
+  document.getElementById('btn-zoom-in').onclick  = () => map.zoomIn();
+  document.getElementById('btn-zoom-out').onclick = () => map.zoomOut();
+  document.getElementById('btn-reset').onclick = () => {
+    if (selectedLayer) {
+      geojsonLayer.resetStyle(selectedLayer);
+      selectedLayer = null;
+      document.getElementById('info-content').innerHTML =
+        '<span style="color:#6e7681">Click any block to inspect</span>';
+    }
+    map.fitBounds(city().bounds);
+  };
+
+  document.getElementById('sel-scheme').onchange = function () {
+    state.scheme = this.value;
+    renderMap();
+  };
+
+  document.getElementById('tog-labels').onchange = function () {
+    state.showLabels = this.checked;
+    if (!geojsonData) return;
+    if (state.showLabels) {
+      labelGroup = buildLabels(geojsonData);
+      labelGroup.addTo(map);
+    } else if (labelGroup) {
+      map.removeLayer(labelGroup);
+    }
+  };
+
+  document.getElementById('tog-borders').onchange = function () {
+    state.showBorders = this.checked;
+    if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+  };
+
+  document.getElementById('tog-fill').onchange = function () {
+    state.showFill = this.checked;
+    if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+  };
+
+  document.getElementById('sel-color-mode').onchange = function () {
+    state.colorMode = this.value;
+    if (this.value === 'osm' && !osmWheelchairMap && geojsonData) {
+      fetchAndApplyOsmData(geojsonData);
+    } else if (this.value === 'terrain' && !terrainMap && geojsonData) {
+      fetchAndApplyTerrainData(geojsonData);
+    } else if (this.value === 'age65' && !ageMap && geojsonData) {
+      fetchAndApplyAgeData(geojsonData);
+    } else if (this.value === 'transit' && !transitMap && geojsonData) {
+      fetchAndApplyTransitData(geojsonData);
+    } else if (this.value === 'composite' && geojsonData) {
+      if (!osmWheelchairMap) fetchAndApplyOsmData(geojsonData);
+      if (!terrainMap)       fetchAndApplyTerrainData(geojsonData);
+      if (!ageMap)           fetchAndApplyAgeData(geojsonData);
+      if (!transitMap)       fetchAndApplyTransitData(geojsonData);
+      computeComposite();
+      if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+      updateLegend();
+    } else if (this.value === 'adi') {
+      if (!adiMap) fetchAdiData();
+      if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+      updateLegend();
+    } else if (this.value === 'sidewalk-neighborhood' && geojsonData) {
+      if (!sidewalkNeighborhoodMap)
+        fetchAndApplySidewalkNeighborhoodData(geojsonData).catch(err => {
+          console.warn('Sidewalk neighborhood fetch failed:', err);
+          setStatus('Sidewalk neighborhood data unavailable', 'error');
+        });
+      else { if (geojsonLayer) geojsonLayer.setStyle(featureStyle); updateLegend(); }
+    } else if (this.value === 'sidewalk-street' && geojsonData) {
+      if (!sidewalkStreetMap)
+        fetchAndApplySidewalkStreetData(geojsonData).catch(err => {
+          console.warn('Sidewalk street fetch failed:', err);
+          setStatus('Sidewalk street data unavailable', 'error');
+        });
+      else { if (geojsonLayer) geojsonLayer.setStyle(featureStyle); updateLegend(); }
+    } else if (this.value === 'prt-routes' && geojsonData) {
+      if (!prtRoutesMap)
+        fetchAndApplyPrtRoutesData(geojsonData).catch(err => {
+          console.warn('PRT routes fetch failed:', err);
+          setStatus('PRT route data unavailable', 'error');
+        });
+      else { if (geojsonLayer) geojsonLayer.setStyle(featureStyle); updateLegend(); }
+    } else {
+      if (geojsonLayer) geojsonLayer.setStyle(featureStyle);
+      updateLegend();
+    }
+  };
+
+  /* City switcher */
+  document.querySelectorAll('input[name="city"]').forEach(radio => {
+    radio.addEventListener('change', function () {
+      state.city = this.value;
+      document.querySelectorAll('.geo-opt').forEach(el => el.classList.remove('active-geo'));
+      this.closest('.geo-opt').classList.add('active-geo');
+
+      const c = city();
+      document.getElementById('sidebar-city-name').textContent = c.name + ' Zipcodes';
+      document.getElementById('sidebar-city-sub').textContent  = c.subtitle;
+
+      selectedLayer = null;
+      document.getElementById('info-content').innerHTML =
+        '<span style="color:#6e7681">Click any block to inspect</span>';
+
+      loadData()
+        .then(applyData)
+        .catch(err => {
+          console.error(err);
+          setStatus('Failed to load — check network / console', 'error');
+        });
+    });
+  });
+
+  /* Geography switcher */
+  document.querySelectorAll('input[name="geography"]').forEach(radio => {
+    radio.addEventListener('change', function () {
+      state.mode = this.value;
+      document.querySelectorAll('.geo-opt').forEach(el => el.classList.remove('active-geo'));
+      this.closest('.geo-opt').classList.add('active-geo');
+
+      selectedLayer = null;
+      document.getElementById('info-content').innerHTML =
+        '<span style="color:#6e7681">Click any block to inspect</span>';
+
+      loadData()
+        .then(applyData)
+        .catch(err => {
+          console.error(err);
+          setStatus('Failed to load — check network / console', 'error');
+        });
+    });
+  });
+
+  /* Basemap switcher */
+  document.querySelectorAll('input[name="basemap"]').forEach(radio => {
+    radio.addEventListener('change', function () {
+      state.basemap = this.value;
+
+      document.querySelectorAll('.basemap-opt').forEach(el => el.classList.remove('active-basemap'));
+      this.closest('.basemap-opt').classList.add('active-basemap');
+
+      if (tileLayer) map.removeLayer(tileLayer);
+
+      if (state.basemap !== 'none') {
+        tileLayer = L.tileLayer(TILE_URLS[state.basemap], {
+          attribution: TILE_ATTR[state.basemap],
+          maxZoom: 19,
+          subdomains: state.basemap !== 'osm' ? 'abcd' : 'abc'
+        }).addTo(map);
+        tileLayer.bringToBack();
+      }
+    });
+  });
+</script>
+</body>
+</html>
